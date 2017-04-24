@@ -10,6 +10,7 @@ const readFile = Promise.promisify(require('fs').readFile);
 const access = Promise.promisify(require('fs').access);
 const readdir = Promise.promisify(require('fs').readdir);
 const readdirSync = require('fs').readdirSync;
+const recursiveReadSync = require('recursive-readdir-sync');
 const mkdirp = Promise.promisify(require('mkdirp'));
 const async = require('async');
 const EOL = require('os').EOL;
@@ -23,10 +24,10 @@ function readConvos() {
   return new Promise(function(readConvosResolve, readConvosReject) {
     access(convodir).then(() => {
       readdir(convodir).then(function(filenames) {
-        
+
         var convos = [];
-        
-        async.each(filenames, 
+
+        async.each(filenames,
           (filename, callback) => {
             if (!filename.endsWith(suffix)) {
               callback();
@@ -36,7 +37,7 @@ function readConvos() {
               (line) => {
                 if (line && line.startsWith('#'))
                   line = '';
-                
+
                 convos.push({
                   name: line.trim(),
                   filename: filename
@@ -55,23 +56,28 @@ function readConvos() {
               readConvosResolve(convos);
             }
           });
-        
+
       }).catch((err) => readConvosReject(err));
     }).catch((err) => readConvosResolve([]));
   });
 }
 
 function getConvoFilesSync() {
-  return readdirSync(convodir).filter((filename) => filename.endsWith(suffix));
+  let files = recursiveReadSync(convodir)
+  .filter(((filename) =>filename.endsWith(suffix))).map(function (filePath) {
+    return filePath.slice(convodir.length - 2, filePath.length);
+  });
+
+  return files;
 }
 
 function readConvo(filename) {
-  
+
 	var convofilename = convodir + filename;
-  
+
   var parseMsg = function(lines) {
     if (!lines) return null;
-    
+
     var content = lines.join(' ');
     if (isJSON(content)) {
       return JSON.parse(content);
@@ -79,9 +85,9 @@ function readConvo(filename) {
       return lines.join(EOL);
     }
   };
-  
+
   return new Promise(function(readConvoResolve, readConvoReject) {
-  
+
     readFile(convofilename).then((content) => {
       var lines = content.toString().split(EOL);
 
@@ -89,7 +95,7 @@ function readConvo(filename) {
         filename: filename,
         conversation: []
       };
-      
+
       var currentLines = [];
       var currentFrom = null;
       var currentChannel = null;
@@ -133,9 +139,9 @@ function readConvo(filename) {
           convo.description = currentLines.slice(1).join(EOL);
         }
       }
-      
+
       readConvoResolve(convo);
-      
+
     }).catch((err) => readConvoReject(err));
   });
 }
@@ -149,38 +155,38 @@ function writeConvo(convo, errorIfExists) {
     convo.filename += suffix;
 
 	var filename = convodir + convo.filename;
-	
+
   return new Promise(function(writeConvoResolve, writeConvoReject) {
 
     async.series([
-      
+
       function(existsCheckDone) {
         if (errorIfExists)
           access(filename).then(() => existsCheckDone(filename + ' already exists')).catch((err) => existsCheckDone());
         else
           existsCheckDone();
       },
-      
+
       function(createDirectoryDone) {
 				mkdirp(convodir).then(() => createDirectoryDone()).catch((err) => createDirectoryDone(err));
       },
-	
+
 			function(writeConvoDone) {
 
 				var contents = '';
-        
+
         contents += convo.name + EOL;
         if (convo.description)
           contents += convo.description + EOL;
         contents += EOL;
-        
+
 				convo.conversation.forEach(function (set) {
 					contents += '#' + set.from;
           if (set.channel) {
             contents += ' ' + set.channel;
           }
           contents += EOL;
-          
+
           if (_.isString(set.msg)) {
             contents += set.msg + EOL + EOL;
           } else {
@@ -197,8 +203,8 @@ function writeConvo(convo, errorIfExists) {
         writeConvoReject(err);
       else
         writeConvoResolve(filename);
-    });			
-	});			
+    });
+	});
 }
 
 

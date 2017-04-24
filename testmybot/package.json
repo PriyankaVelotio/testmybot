@@ -15,7 +15,8 @@
     "socket.io-client": "^1.7.3",
     "tcp-port-used": "^0.1.2",
     "testmybot-fbmock": "0.2.3",
-    "testmybot-slackmock": "0.2.3"
+    "testmybot-slackmock": "0.2.3",
+    "recursive-readdir-sync" : "^1.0.6"
   },
   "devDependencies": {},
   "repository": {
